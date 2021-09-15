@@ -176,15 +176,16 @@ def crack(data):
     return [{"x": int(ans[w][0]), "y": int(ans[w][1])} for w in data["wordList"]]
 
 
-if __name__ == "__main__":
-    while True:
+def getCode():
+    for i in range(10):
         data = getData()
         point = crack(data)
         if check(data, point)["repCode"] == "0000":
-            print(
-                encrypt(
+            return encrypt(
                     data["token"] + "---" + json.dumps(point).replace(" ", ""),
-                    data["secretKey"],
-                )
-            )
-            break
+                    data["secretKey"])
+        else:
+            print(f"Trial {i} failed")
+
+if __name__ == "__main__":
+    print(getCode())
