@@ -183,7 +183,7 @@ def getCode():
         point = crack(data)
         if check(data, point)["repCode"] == "0000":
             raw = data["token"] + "---" + json.dumps(point).replace(" ", "")
-            return encrypt(raw, data["secretKey"]))
+            return encrypt(raw, data["secretKey"])
         else:
             print(f"Trial {i} failed")
 
