@@ -45,8 +45,10 @@ def getImageFromBase64(b64):
 
 
 def findContour(img):
-    contours, _ = cv2.findContours(
-        img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if cv2.__version__.startswith('3'):
+        _, contours, _ = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    else: 
+        contours, _ = cv2.findContours(img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     def find_if_close(cnt1, cnt2):
         row1, row2 = cnt1.shape[0], cnt2.shape[0]
@@ -94,6 +96,8 @@ def extractChar(img, contour):
 
         W = rect[1][0]
         H = rect[1][1]
+        if W * H < 10:
+            continue
 
         Xs = [i[0] for i in box]
         Ys = [i[1] for i in box]
@@ -125,6 +129,7 @@ def extractChar(img, contour):
             (int(croppedW * mult), int(croppedH * mult)),
             (size[0] / 2, size[1] / 2),
         )
+
         if croppedRotated.size < 200:
             continue
         if np.mean(croppedRotated) < 30:
@@ -172,11 +177,15 @@ def crack(data):
     return [{"x": int(ans[w][0]), "y": int(ans[w][1])} for w in data["wordList"]]
 
 
-if __name__ == "__main__":
-    while True:
+def getCode():
+    for i in range(10):
         data = getData()
         point = crack(data)
         if check(data, point)["repCode"] == "0000":
             raw = data["token"] + "---" + json.dumps(point).replace(" ", "")
-            print(encrypt(raw, data["secretKey"]))
-            break
+            return encrypt(raw, data["secretKey"]))
+        else:
+            print(f"Trial {i} failed")
+
+if __name__ == "__main__":
+    print(getCode())
