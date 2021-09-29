@@ -9,18 +9,15 @@ from PIL import Image, ImageDraw, ImageFont
 
 
 def getData():
-    resp = requests.post(
-        "https://ids.tongji.edu.cn:8443/nidp/app/login?sid=0&sid=0/getCaptcha=1"
-    )
+    url = "https://ids.tongji.edu.cn:8443/nidp/app/login?sid=0&sid=0/getCaptcha=1"
+    resp = requests.post(url)
     return resp.json()["repData"]
 
 
 def check(data, point):
+    url = "https://ids.tongji.edu.cn:8443/nidp/app/login?sid=0&sid=0/checkCaptcha=1"
     enc = encrypt(json.dumps(point).replace(" ", ""), data["secretKey"])
-    resp = requests.post(
-        "https://ids.tongji.edu.cn:8443/nidp/app/login?sid=0&sid=0/checkCaptcha=1",
-        json={"token": data["token"], "pointJson": enc,},
-    )
+    resp = requests.post(url,json={ "token": data["token"], "pointJson": enc })
     return resp.json()
 
 
@@ -58,7 +55,7 @@ def findContour(img):
         for i in range(row1):
             for j in range(row2):
                 dist = np.linalg.norm(cnt1[i] - cnt2[j])
-                if abs(dist) < 5:
+                if abs(dist) < 2:
                     return True
                 elif i == row1 - 1 and j == row2 - 1:
                     return False
@@ -89,7 +86,7 @@ def findContour(img):
 
 
 def extractChar(img, contour):
-    mult = 1.2
+    mult = 1.1
     ret = []
     pt = []
     for cnt in contour:
@@ -133,7 +130,11 @@ def extractChar(img, contour):
             (size[0] / 2, size[1] / 2),
         )
 
-        im = cv2.resize(croppedRotated, (20, 20))
+        if croppedRotated.size < 200:
+            continue
+        if np.mean(croppedRotated) < 30:
+            continue
+        im = cv2.resize(croppedRotated, (30, 30))
         kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]], np.float32)
         im = cv2.filter2D(im, -1, kernel=kernel)
         ret.append(im)
@@ -148,15 +149,15 @@ def genCharacter(ch, size):
     draw.text((0, 0), ch, font=font, fill=255)
     return np.asarray(img)
 
-
 def crack(data):
     img = getImageFromBase64(data["originalImageBase64"])
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     _, img = cv2.threshold(img, 1, 255, cv2.THRESH_BINARY)
+    img = cv2.bilateralFilter(img, 5, 200, 200)
     img = cv2.bitwise_not(img)
     cnt = findContour(img)
     ch, pt = extractChar(img, cnt)
-    wd = [genCharacter(w, (20, 20)) for w in data["wordList"]]
+    wd = [genCharacter(w, (30, 30)) for w in data["wordList"]]
     score = []
     for i, w in enumerate(wd):
         for j, c in enumerate(ch):
@@ -181,9 +182,8 @@ def getCode():
         data = getData()
         point = crack(data)
         if check(data, point)["repCode"] == "0000":
-            return encrypt(
-                    data["token"] + "---" + json.dumps(point).replace(" ", ""),
-                    data["secretKey"])
+            raw = data["token"] + "---" + json.dumps(point).replace(" ", "")
+            return encrypt(raw, data["secretKey"]))
         else:
             print(f"Trial {i} failed")
 
